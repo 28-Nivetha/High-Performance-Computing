@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <mpi.h>
+
+int isPalindrome(char str[])
+{
+    int i, len = strlen(str);
+    for (i = 0; i < len / 2; i++)
+    {
+        if (tolower(str[i]) != tolower(str[len - i - 1]))
+            return 0;
+    }
+    return 1;
+}
+
+int main(int argc, char *argv[])
+{
+    int src, rank, size;
+    char msg[100];
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if (rank == 0)   // MASTER PROCESS
+    {
+        MPI_Status status;
+
+        for (int i = 1; i < size; i++)
+        {
+            MPI_Recv(msg, 100, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG,
+                     MPI_COMM_WORLD, &status);
+            src = status.MPI_SOURCE;
+
+            if (status.MPI_TAG == 1)   // Uppercase
+            {
+                for (int j = 0; msg[j]; j++)
+                    msg[j] = toupper(msg[j]);
+
+                printf("Master : Received from process%d(Type1)\nUppercase String: %s\n", src, msg);
+            }
+            else if (status.MPI_TAG == 2)   // Palindrome
+            {
+                if (isPalindrome(msg))
+                    printf("Master : Received from process%d(Type2)\nResult : %s is a palindrome string\n", src, msg);
+                else
+                    printf("Master : Received from process%d(Type2)\nResult : %s is not a palindrome string\n", src, msg);
+            }
+        }
+    }
+    else   // WORKER PROCESSES
+    {
+        // Hardcoded strings for each worker process
+        if (rank == 1) {
+            strcpy(msg, "Hello");
+        } else if (rank == 2) {
+            strcpy(msg, "Racecar");
+        } else if (rank == 3) {
+            strcpy(msg, "Varshini");
+        } else if (rank == 4) {
+            strcpy(msg, "India");
+        }
+
+        if (rank % 2 == 1)   // Odd rank
+        {
+            MPI_Send(msg, strlen(msg) + 1, MPI_CHAR,
+                     0, 1, MPI_COMM_WORLD);
+        }
+        else   // Even rank
+        {
+            MPI_Send(msg, strlen(msg) + 1, MPI_CHAR,
+                     0, 2, MPI_COMM_WORLD);
+        }
+    }
+
+    MPI_Finalize();
+    return 0;
+}
